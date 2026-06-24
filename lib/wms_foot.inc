@@ -3,8 +3,8 @@
     </div><!--/content-->
   </div><!--/main-->
 </div><!--/app-->
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+<script src="/assets/vendor/jquery/jquery-3.7.1.min.js"></script>
+<script src="/assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
 <script src="/assets/js/app.js"></script>
 </body>
 </html>

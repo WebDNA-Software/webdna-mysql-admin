@@ -1,20 +1,19 @@
 [!] Shared page shell for WebDNA MySQLAdmin — dark/red sidebar + topbar,
-    Bootstrap 5.3 (CDN). Server-rendered multi-page model: one WebDNA-processed
+    Bootstrap 5.3. Server-rendered multi-page model: one WebDNA-processed
     .html per page; the sidebar links to real URLs; the active item is set by
     [text]nav=...[/text] before this include. Also set [text]page_title=...[/text].
     Requires config.inc to have run first (provides [WMS_ADMIN_USER]/[WMS_DB_HOST]).
     Closed by lib/wms_foot.inc.
-    NOTE: Bootstrap/icons load from CDN — fine where the box has internet; vendor
-    them locally before locked-down prod. [/!]
+    Bootstrap, Bootstrap Icons and jQuery are vendored under /assets/vendor/ (no
+    CDN), so the tool works on locked-down/offline boxes. [/!]
 <!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>[WMS_APP_NAME] — [page_title]</title>
-<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="/assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
+<link href="/assets/vendor/bootstrap-icons/bootstrap-icons.min.css" rel="stylesheet">
 <link href="/assets/css/custom.css" rel="stylesheet">
 </head>
 <body>

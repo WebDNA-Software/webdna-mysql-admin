@@ -13,8 +13,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>[errcode] — WebDNA MySQLAdmin</title>
-<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<link href="/assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
+<link href="/assets/vendor/bootstrap-icons/bootstrap-icons.min.css" rel="stylesheet">
 <link href="/assets/css/custom.css" rel="stylesheet">
 <style>
   body{background:linear-gradient(135deg,#C61D23,#0d1424);min-height:100vh;display:grid;place-items:center;margin:0;}

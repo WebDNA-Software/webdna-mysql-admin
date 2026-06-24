@@ -125,7 +125,10 @@ SELECT a, b FROM ...
 - Avoid WebDNA reserved words as field/variable/param names — this app uses
   `myadminuser` (not `username`), `admins.db` (not `users.db`), the `dbtable` URL
   param (not `table`), and `newsql` (not `sql`).
-- Bootstrap/icons/jQuery from CDN; custom CSS served static (not WebDNA-processed).
+- Bootstrap, Bootstrap Icons and jQuery are **vendored locally** under
+  `assets/vendor/` (no CDN — works on locked-down/offline boxes); custom CSS served
+  static (not WebDNA-processed). The Inter webfont link was dropped; the CSS falls
+  back to `system-ui`.
 
 ## Verify against YOUR WebDNA build
 
@@ -160,7 +163,6 @@ can confirm/adjust in one spot each:
 - **Export**: real file download (`Content-Disposition`), gzip, true `NULL`
   handling, row limits/chunking.
 - **Server**: status/variables, process list, charsets/engines.
-- Vendor Bootstrap/jQuery locally for locked-down/offline boxes.
 
 ## Scope decisions (agreed at kickoff)
 

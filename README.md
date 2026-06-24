@@ -15,7 +15,7 @@ This is **v1 / Core + Import-Export**. It talks to MySQL through WebDNA's native
 | Dashboard | `index.html` | Server version, current user, database count, database list. |
 | Databases | `databases.html` | List with size/collation; **CREATE** and **DROP** database. |
 | Tables | `db.html` | Tables in a database; **DROP** and **TRUNCATE** table. |
-| Browse | `table.html` | Paginated rows, dynamic columns. |
+| Browse | `table.html` | Paginated rows, dynamic columns; **add / edit / delete rows** (PK-detected, type-aware) via `insert.html` / `edit.html`. |
 | Structure | `structure.html` | Columns + indexes (from `information_schema`). |
 | SQL | `sql.html` | Run any SQL; result grid for single `SELECT`/`WITH`. |
 | Import | `import.html` | Paste a SQL script; statements split on `;` and run in order. |
@@ -149,7 +149,16 @@ can confirm/adjust in one spot each:
 
 ## Roadmap (next milestones)
 
-- **Row editing**: inline edit / insert / delete (needs primary-key detection).
+- **Inline (in-grid) editing**: edit a cell directly in the browse grid. Insert /
+  edit / delete already work via dedicated `insert.html` / `edit.html` pages
+  (PK-detected, type-aware); true in-grid editing would add double-click-to-edit
+  in `table.html` — needs client-side JS plus a small save endpoint.
+- **Search & browse**: per-table search (column → operator → value, builds a safe
+  `WHERE`), **sortable columns** (click header → `ORDER BY`), a quick cross-column
+  filter box, and **database-wide search** across all tables/columns. Plus row
+  **duplicate** (insert form pre-filled from a row) and **bulk delete** (checkbox
+  select). These reuse the existing column detection, `[sqlval]` escaping, PK
+  detection and the paginated grid.
 - **Create table** UI (column builder) and ALTER (add/drop/modify column, index).
 - **MySQL user & privilege admin** (`CREATE USER`, `GRANT`/`REVOKE`) — distinct
   from this tool's own admin accounts.
@@ -160,6 +169,22 @@ can confirm/adjust in one spot each:
 - **Export**: real file download (`Content-Disposition`), gzip, true `NULL`
   handling, row limits/chunking.
 - **Server**: status/variables, process list, charsets/engines.
+
+## Known issues
+
+- **Export — `CREATE TABLE` line fails.** `export.html` reads the `SHOW CREATE
+  TABLE` result via `[field name=Create Table]`, but `[field]` isn't the
+  SQL-result accessor in this WebDNA build (errors with `MISSING REQUIRED
+  PARAMETER: seek`), and the `Create Table` column name has a space so it can't be
+  read as a plain `[…]` tag. The `CREATE TABLE` statement in a SQL dump therefore
+  comes out as WebDNA error text, so re-importing a full dump fails; the `INSERT`s
+  are unaffected. *On hold* — pending a way to read a space-named result column (or
+  reconstruct the DDL from `information_schema`).
+- **Import — naive `;` statement splitting.** `import.html` splits the pasted
+  script on every `;` (`[listwords …&delimiters=;]`) with no awareness of quotes or
+  comments, so a `;` inside a string literal/comment mis-splits the statement and
+  the import fails. *Tracked as a GitHub issue* — fix is a quote-/comment-aware
+  splitter.
 
 ## Scope decisions (agreed at kickoff)
 

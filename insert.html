@@ -1,0 +1,80 @@
+[!]
+  insert.html?db=DB&dbtable=T — add a new row.
+
+  Renders one blank field per *editable* column. Columns MySQL fills itself are
+  omitted so the server assigns them: AUTO_INCREMENT keys, and temporal
+  (date/datetime/timestamp/time/year) columns (which usually have a default such
+  as CURRENT_TIMESTAMP, and whose d/m/Y display format can't be sent back anyway).
+  On submit, builds INSERT INTO `db`.`tbl` (cols...) VALUES (...). WebDNA-processed.
+[/!]
+[include file=config.inc]
+[text]cur_db=[db][/text]
+[text]cur_tbl=[dbtable][/text]
+[showif [cur_db]=][redirect /databases.html][/showif]
+[showif [cur_tbl]=][redirect /db.html?db=[url][cur_db][/url][/showif]
+[text]nav=databases[/text]
+[text]page_title=Add row[/text]
+[text]action=[action][/text]
+
+[!]-- Columns, plus the sets MySQL manages (temporal + auto_increment) which we omit. --[/!]
+[text]cols=[/text][text]datecols=[/text][text]autocols=[/text]
+[sqlexecute conn_ref=myAdmin]
+SET SESSION group_concat_max_len=1000000
+[/sqlexecute]
+[sqlexecute conn_ref=myAdmin&result_var=result_cols]
+SELECT GROUP_CONCAT(column_name ORDER BY ordinal_position SEPARATOR '|') AS cols FROM information_schema.columns WHERE table_schema='[cur_db]' AND table_name='[cur_tbl]'
+[/sqlexecute]
+[sqlresult result_ref=result_cols][founditems][text]cols=[cols][/text][/founditems][/sqlresult]
+[sqlexecute conn_ref=myAdmin&result_var=result_datecols]
+SELECT GROUP_CONCAT(column_name ORDER BY ordinal_position SEPARATOR '|') AS dc FROM information_schema.columns WHERE table_schema='[cur_db]' AND table_name='[cur_tbl]' AND data_type IN ('date','datetime','timestamp','time','year')
+[/sqlexecute]
+[sqlresult result_ref=result_datecols][founditems][text]datecols=[dc][/text][/founditems][/sqlresult]
+[sqlexecute conn_ref=myAdmin&result_var=result_autocols]
+SELECT GROUP_CONCAT(column_name ORDER BY ordinal_position SEPARATOR '|') AS ac FROM information_schema.columns WHERE table_schema='[cur_db]' AND table_name='[cur_tbl]' AND extra LIKE '%auto_increment%'
+[/sqlexecute]
+[sqlresult result_ref=result_autocols][founditems][text]autocols=[ac][/text][/founditems][/sqlresult]
+
+[!]-- Insert: build (cols) VALUES (vals) from the editable fields only, omitting the
+     MySQL-managed columns so their defaults / auto-increment / timestamps apply. --[/!]
+[showif [action]=insert_row]
+  [text]inscols=[/text][text]insvals=[/text]
+  [listwords words=[cols]&delimiters=|][showif [findstring source=|[datecols]|[autocols]|&find=|[word]|]=0][text]inscols=[inscols],[sqlid s=[word]][/text][text]insvals=[insvals],[sqlval v=[interpret][c_[word]][/interpret]][/text][/showif][/listwords]
+  [showif [inscols]!]
+    [text]inscols=[getchars start=2&end=[countchars][inscols][/countchars]][inscols][/getchars][/text]
+    [text]insvals=[getchars start=2&end=[countchars][insvals][/countchars]][insvals][/getchars][/text]
+    [sqlexecute conn_ref=myAdmin]
+    USE [sqlid s=[cur_db]]
+    [/sqlexecute]
+    [sqlexecute conn_ref=myAdmin]
+    INSERT INTO [sqlid s=[cur_db]].[sqlid s=[cur_tbl]] ([inscols]) VALUES ([insvals])
+    [/sqlexecute]
+  [/showif]
+  [redirect /table.html?db=[url][cur_db][/url]&dbtable=[url][cur_tbl][/url]]
+[/showif]
+
+[include file=lib/wms_head.inc]
+
+<div class="crumbs"><a href="/databases.html">Databases</a><span class="sep">/</span><a href="/db.html?db=[url][cur_db][/url]">[cur_db]</a><span class="sep">/</span><a href="/table.html?db=[url][cur_db][/url]&dbtable=[url][cur_tbl][/url]">[cur_tbl]</a><span class="sep">/</span>add</div>
+<div class="page-head">
+  <div><h1><i class="bi bi-plus-square"></i> Add row</h1>
+  <div class="sub"><span class="mono">[cur_db]</span> &middot; <span class="mono">[cur_tbl]</span></div></div>
+  <a class="btn btn-sm btn-outline-secondary" href="/table.html?db=[url][cur_db][/url]&dbtable=[url][cur_tbl][/url]"><i class="bi bi-x-lg"></i> Cancel</a>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <form method="post" action="/insert.html?db=[url][cur_db][/url]&dbtable=[url][cur_tbl][/url]">
+      <input type="hidden" name="action" value="insert_row">
+      [listwords words=[cols]&delimiters=|][showif [findstring source=|[datecols]|[autocols]|&find=|[word]|]=0]
+      <div class="mb-2">
+        <label class="form-label small mb-1 mono">[word]</label>
+        <input class="form-control form-control-sm" name="c_[word]" value="">
+      </div>
+      [/showif][/listwords]
+      <p class="legend small">Auto-increment keys and date/time columns are filled by MySQL and not shown.</p>
+      <div class="mt-2"><button class="btn btn-success"><i class="bi bi-plus-lg"></i> Add row</button> <a class="btn btn-link" href="/table.html?db=[url][cur_db][/url]&dbtable=[url][cur_tbl][/url]">Cancel</a></div>
+    </form>
+  </div>
+</div>
+
+[include file=lib/wms_foot.inc]

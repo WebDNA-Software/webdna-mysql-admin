@@ -1,0 +1,98 @@
+[!]
+  users.html — manage the admin accounts that can sign in to THIS tool
+  (db/admins.db). Separate from MySQL users. List / add / delete. WebDNA-processed.
+[/!]
+[include file=config.inc]
+[text]nav=users[/text]
+[text]page_title=Admin users[/text]
+[text]flash=[/text][text]flashtype=success[/text]
+[text]action=[action][/text]
+[text]uname=[grep search=([^a-zA-Z0-9_.@-])&replace=][f_user][/grep][/text]
+
+[!]-- Add an admin. --[/!]
+[showif [action]=add_user]
+  [if ("[uname]"!"")&("[f_pass]"!"")]
+    [then]
+      [text]exists=0[/text]
+      [search db=db/admins.db&eqMYADMINUSERdatarq=[uname]][text]exists=[numfound][/text][/search]
+      [if ("[exists]">"0")]
+        [then][text]flash=User [uname] already exists.[/text][text]flashtype=danger[/text][/then]
+        [else]
+          [append db=db/admins.db]myadminuser=[uname]&passhash=[encrypt method=AES&seed=[SITE-SEED]][f_pass][/encrypt]&created=[date] [time][/append]
+          [text]flash=Added admin user [uname].[/text]
+        [/else]
+      [/if]
+    [/then]
+    [else][text]flash=Username and password are both required.[/text][text]flashtype=danger[/text][/else]
+  [/if]
+[/showif]
+
+[!]-- Delete an admin (not yourself, to avoid locking out). --[/!]
+[showif [action]=delete_user]
+  [if ("[uname]"="[WMS_ADMIN_USER]")]
+    [then][text]flash=You cannot delete the account you are signed in as.[/text][text]flashtype=danger[/text][/then]
+    [else]
+      [delete db=db/admins.db&eqmyadminuserdata=[uname]]
+      [text]flash=Deleted admin user [uname].[/text][text]flashtype=warning[/text]
+    [/else]
+  [/if]
+[/showif]
+
+[include file=lib/wms_head.inc]
+
+<div class="page-head">
+  <div><h1><i class="bi bi-people"></i> Admin users</h1>
+  <div class="sub">Accounts that can sign in to this console (not MySQL users)</div></div>
+  <button class="btn btn-sm btn-success" data-bs-toggle="collapse" data-bs-target="#newuser"><i class="bi bi-person-plus"></i> Add user</button>
+</div>
+
+[showif [flash]!]<div class="alert alert-[flashtype] alert-autohide py-2">[flash]</div>[/showif]
+
+<div class="collapse mb-3" id="newuser">
+  <div class="card card-body">
+    <form method="post" action="/users.html" class="row g-2 align-items-end">
+      <input type="hidden" name="action" value="add_user">
+      <div class="col-auto">
+        <label class="form-label small mb-1">Username</label>
+        <input class="form-control form-control-sm" name="f_user" placeholder="jsmith" required>
+      </div>
+      <div class="col-auto">
+        <label class="form-label small mb-1">Password</label>
+        <input class="form-control form-control-sm" type="password" name="f_pass" required>
+      </div>
+      <div class="col-auto"><button class="btn btn-sm btn-success">Add</button></div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead><tr><th>Username</th><th>Created</th><th class="text-end">Actions</th></tr></thead>
+      <tbody>
+      [search db=db/admins.db&neMYADMINUSERdatarq=[blank]&max=5000]
+        [founditems]
+        <tr>
+          <td class="fw-semibold">[myadminuser][showif [myadminuser]=[WMS_ADMIN_USER]] <span class="chip">you</span>[/showif]</td>
+          <td class="legend">[created]</td>
+          <td class="text-end row-actions">
+            [if ("[myadminuser]"!"[WMS_ADMIN_USER]")]
+              [then]
+                <form method="post" action="/users.html" class="d-inline">
+                  <input type="hidden" name="action" value="delete_user">
+                  <input type="hidden" name="f_user" value="[myadminuser]">
+                  <button class="btn btn-link btn-sm p-0 text-danger" data-confirm="Delete admin user [myadminuser]?"><i class="bi bi-trash"></i></button>
+                </form>
+              [/then]
+              [else]<span class="legend">&mdash;</span>[/else]
+            [/if]
+          </td>
+        </tr>
+        [/founditems]
+      [/search]
+      </tbody>
+    </table>
+  </div>
+</div>
+
+[include file=lib/wms_foot.inc]

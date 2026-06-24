@@ -1,0 +1,77 @@
+[!]
+  structure.html?db=DB&dbtable=T — column definitions and indexes for one table,
+  read from information_schema. WebDNA-processed.
+[/!]
+[include file=config.inc]
+[text]cur_db=[db][/text]
+[text]cur_tbl=[dbtable][/text]
+[showif [cur_db]=][redirect /databases.html][/showif]
+[showif [cur_tbl]=][redirect /db.html?db=[url][cur_db][/url][/showif]
+[text]nav=databases[/text]
+[text]page_title=[cur_tbl] structure[/text]
+
+[!]-- Queries first (information_schema, schema-explicit). --[/!]
+[sqlexecute conn_ref=myAdmin&result_var=result_cols]
+SELECT ordinal_position AS pos, column_name AS c, column_type AS ty, is_nullable AS nn, column_key AS k, IFNULL(column_default,'NULL') AS dflt, extra AS ex FROM information_schema.columns WHERE table_schema='[cur_db]' AND table_name='[cur_tbl]' ORDER BY ordinal_position
+[/sqlexecute]
+[sqlexecute conn_ref=myAdmin&result_var=result_idx]
+SELECT index_name AS idx, GROUP_CONCAT(column_name ORDER BY seq_in_index SEPARATOR ', ') AS colz, IF(non_unique=0,'Yes','No') AS uniq, index_type AS ty FROM information_schema.statistics WHERE table_schema='[cur_db]' AND table_name='[cur_tbl]' GROUP BY index_name, non_unique, index_type ORDER BY (index_name='PRIMARY') DESC, index_name
+[/sqlexecute]
+
+[include file=lib/wms_head.inc]
+
+<div class="crumbs"><a href="/databases.html">Databases</a><span class="sep">/</span><a href="/db.html?db=[url][cur_db][/url]">[cur_db]</a><span class="sep">/</span><a href="/table.html?db=[url][cur_db][/url]&dbtable=[url][cur_tbl][/url]">[cur_tbl]</a><span class="sep">/</span>structure</div>
+<div class="page-head">
+  <div><h1><i class="bi bi-diagram-3"></i> [cur_tbl]</h1><div class="sub">Structure</div></div>
+  <a class="btn btn-sm btn-outline-primary" href="/table.html?db=[url][cur_db][/url]&dbtable=[url][cur_tbl][/url]"><i class="bi bi-eye"></i> Browse</a>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header">Columns</div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead><tr><th>#</th><th>Name</th><th>Type</th><th>Null</th><th>Key</th><th>Default</th><th>Extra</th></tr></thead>
+      <tbody>
+      [sqlresult result_ref=result_cols]
+        [founditems]
+        <tr>
+          <td class="legend">[pos]</td>
+          <td class="fw-semibold mono">[c]</td>
+          <td class="mono">[ty]</td>
+          <td>[switch value=[nn]][case value=YES]<span class="legend">Yes</span>[/case][case value=NO]<span class="legend">No</span>[/case][/switch]</td>
+          <td>[switch value=[k]][case value=PRI]<span class="kbadge k-pri">PRI</span>[/case][case value=UNI]<span class="kbadge k-uni">UNI</span>[/case][case value=MUL]<span class="kbadge k-mul">MUL</span>[/case][/switch]</td>
+          <td class="mono">[dflt]</td>
+          <td class="legend">[ex]</td>
+        </tr>
+        [/founditems]
+      [/sqlresult]
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">Indexes</div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead><tr><th>Name</th><th>Columns</th><th>Unique</th><th>Type</th></tr></thead>
+      <tbody>
+      [text]anyidx=0[/text]
+      [sqlresult result_ref=result_idx]
+        [founditems]
+        [text]anyidx=1[/text]
+        <tr>
+          <td class="fw-semibold mono">[idx]</td>
+          <td class="mono">[colz]</td>
+          <td>[uniq]</td>
+          <td class="legend">[ty]</td>
+        </tr>
+        [/founditems]
+      [/sqlresult]
+      [showif [anyidx]=0]<tr><td colspan="4"><div class="empty"><i class="bi bi-key"></i>No indexes.</div></td></tr>[/showif]
+      </tbody>
+    </table>
+  </div>
+</div>
+
+[include file=lib/wms_foot.inc]

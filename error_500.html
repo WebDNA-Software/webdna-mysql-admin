@@ -1,0 +1,7 @@
+[!] 500 Internal Server Error. Self-contained (no config.inc — see lib/wms_error.inc).
+    This is the redirect target of lib/wms_connect.inc on DB-connect failure, so it
+    MUST NOT pull in config.inc (would loop). WebDNA-processed. [/!]
+[text]errcode=500[/text]
+[text]errtitle=Server error[/text]
+[text]errmsg=Something went wrong on the server. If this persists, check the database connection settings (WMS_DB_*) in config.inc.[/text]
+[include file=lib/wms_error.inc]

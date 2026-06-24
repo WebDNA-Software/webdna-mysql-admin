@@ -1,0 +1,81 @@
+[!]
+  db.html?db=NAME — one database: its tables with engine, row estimate, size and
+  collation. Supports DROP TABLE and TRUNCATE TABLE (POST). WebDNA-processed.
+[/!]
+[include file=config.inc]
+[text]cur_db=[db][/text]
+[showif [cur_db]=][redirect /databases.html][/showif]
+[text]nav=databases[/text]
+[text]page_title=[cur_db][/text]
+[text]flash=[/text][text]flashtype=success[/text]
+[text]action=[action][/text]
+
+[showif [action]=drop_table][showif [f_table]!]
+  [sqlexecute conn_ref=myAdmin]
+  DROP TABLE [sqlid s=[cur_db]].[sqlid s=[f_table]]
+  [/sqlexecute]
+  [text]flash=Table [f_table] dropped.[/text][text]flashtype=warning[/text]
+[/showif][/showif]
+
+[showif [action]=truncate_table][showif [f_table]!]
+  [sqlexecute conn_ref=myAdmin]
+  TRUNCATE TABLE [sqlid s=[cur_db]].[sqlid s=[f_table]]
+  [/sqlexecute]
+  [text]flash=Table [f_table] emptied.[/text][text]flashtype=warning[/text]
+[/showif][/showif]
+
+[!]-- Table list (after mutations so it reflects them). --[/!]
+[sqlexecute conn_ref=myAdmin&result_var=result_tables]
+SELECT table_name AS t, IFNULL(engine,'-') AS eng, IFNULL(table_rows,0) AS rws, IFNULL(data_length+index_length,0) AS bytes, IFNULL(table_collation,'-') AS coll FROM information_schema.tables WHERE table_schema='[cur_db]' AND table_type='BASE TABLE' ORDER BY table_name
+[/sqlexecute]
+
+[include file=lib/wms_head.inc]
+
+<div class="crumbs"><a href="/databases.html">Databases</a><span class="sep">/</span><span class="mono">[cur_db]</span></div>
+<div class="page-head">
+  <div><h1><i class="bi bi-stack"></i> [cur_db]</h1>
+  <div class="sub">Tables in this database</div></div>
+  <a class="btn btn-sm btn-outline-primary" href="/sql.html?db=[url][cur_db][/url]"><i class="bi bi-terminal"></i> SQL on this database</a>
+</div>
+
+[showif [flash]!]<div class="alert alert-[flashtype] alert-autohide py-2">[flash]</div>[/showif]
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead><tr><th>Table</th><th class="text-end">Rows</th><th class="text-end">Size</th><th>Engine</th><th>Collation</th><th class="text-end">Actions</th></tr></thead>
+      <tbody>
+      [text]ntables=0[/text]
+      [sqlresult result_ref=result_tables]
+        [founditems]
+        [text]ntables=1[/text]
+        <tr>
+          <td><a class="tbl-link" href="/table.html?db=[url][cur_db][/url]&dbtable=[url][t][/url]"><i class="bi bi-table"></i>[t]</a></td>
+          <td class="text-end">[rws]</td>
+          <td class="text-end mono">[wms_size bytes=[bytes]]</td>
+          <td class="legend">[eng]</td>
+          <td class="legend">[coll]</td>
+          <td class="text-end row-actions">
+            <a href="/table.html?db=[url][cur_db][/url]&dbtable=[url][t][/url]"><i class="bi bi-eye"></i> Browse</a>
+            <a href="/structure.html?db=[url][cur_db][/url]&dbtable=[url][t][/url]"><i class="bi bi-diagram-3"></i> Structure</a>
+            <form method="post" action="/db.html?db=[url][cur_db][/url]" class="d-inline">
+              <input type="hidden" name="action" value="truncate_table">
+              <input type="hidden" name="f_table" value="[t]">
+              <button class="btn btn-link btn-sm p-0 text-warning" data-confirm="Empty (TRUNCATE) [t]? All rows are deleted."><i class="bi bi-eraser"></i></button>
+            </form>
+            <form method="post" action="/db.html?db=[url][cur_db][/url]" class="d-inline">
+              <input type="hidden" name="action" value="drop_table">
+              <input type="hidden" name="f_table" value="[t]">
+              <button class="btn btn-link btn-sm p-0 text-danger" data-confirm="Drop table [t]? This cannot be undone."><i class="bi bi-trash"></i></button>
+            </form>
+          </td>
+        </tr>
+        [/founditems]
+      [/sqlresult]
+      [showif [ntables]=0]<tr><td colspan="6"><div class="empty"><i class="bi bi-inbox"></i>No tables in this database yet.</div></td></tr>[/showif]
+      </tbody>
+    </table>
+  </div>
+</div>
+
+[include file=lib/wms_foot.inc]

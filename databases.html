@@ -1,0 +1,89 @@
+[!]
+  databases.html — list all schemas with table count, size and collation.
+  Supports CREATE DATABASE and DROP DATABASE (POST). WebDNA-processed.
+[/!]
+[include file=config.inc]
+[text]nav=databases[/text]
+[text]page_title=Databases[/text]
+[text]flash=[/text][text]flashtype=success[/text]
+[text]action=[action][/text]
+
+[!]-- Mutations first, before any output, so we can flash + re-render the list. --[/!]
+[showif [action]=create_db]
+  [if ("[f_dbname]"!"")]
+    [then]
+      [sqlexecute conn_ref=myAdmin]
+      CREATE DATABASE [sqlid s=[f_dbname]] CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci
+      [/sqlexecute]
+      [text]flash=Database [f_dbname] created (or already existed).[/text]
+    [/then]
+    [else][text]flash=Database name was empty.[/text][text]flashtype=danger[/text][/else]
+  [/if]
+[/showif]
+
+[showif [action]=drop_db]
+  [showif [f_dbname]!]
+    [sqlexecute conn_ref=myAdmin]
+    DROP DATABASE [sqlid s=[f_dbname]]
+    [/sqlexecute]
+    [text]flash=Database [f_dbname] dropped.[/text][text]flashtype=warning[/text]
+  [/showif]
+[/showif]
+
+[!]-- List query (runs after mutations so the table reflects them). --[/!]
+[sqlexecute conn_ref=myAdmin&result_var=result_dbs]
+SELECT s.schema_name AS db, s.default_collation_name AS coll, COUNT(t.table_name) AS tbls, IFNULL(SUM(t.data_length+t.index_length),0) AS bytes FROM information_schema.schemata s LEFT JOIN information_schema.tables t ON t.table_schema=s.schema_name GROUP BY s.schema_name, s.default_collation_name ORDER BY s.schema_name
+[/sqlexecute]
+
+[include file=lib/wms_head.inc]
+
+<div class="page-head">
+  <div><h1><i class="bi bi-stack"></i> Databases</h1>
+  <div class="sub">All schemas on <span class="mono">[WMS_DB_HOST]:[WMS_DB_PORT]</span></div></div>
+  <button class="btn btn-sm btn-success" data-bs-toggle="collapse" data-bs-target="#newdb"><i class="bi bi-plus-lg"></i> New database</button>
+</div>
+
+[showif [flash]!]<div class="alert alert-[flashtype] alert-autohide py-2">[flash]</div>[/showif]
+
+<div class="collapse mb-3" id="newdb">
+  <div class="card card-body">
+    <form method="post" action="/databases.html" class="row g-2 align-items-end">
+      <input type="hidden" name="action" value="create_db">
+      <div class="col-auto">
+        <label class="form-label small mb-1">Create database</label>
+        <input class="form-control form-control-sm" name="f_dbname" placeholder="database_name" required>
+      </div>
+      <div class="col-auto"><button class="btn btn-sm btn-success">Create</button></div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead><tr><th>Database</th><th class="text-end">Tables</th><th class="text-end">Size</th><th>Collation</th><th></th></tr></thead>
+      <tbody>
+      [sqlresult result_ref=result_dbs]
+        [founditems]
+        <tr>
+          <td><a class="db-link" href="/db.html?db=[url][db][/url]"><i class="bi bi-stack"></i>[db]</a></td>
+          <td class="text-end">[tbls]</td>
+          <td class="text-end mono">[wms_size bytes=[bytes]]</td>
+          <td class="legend">[coll]</td>
+          <td class="text-end row-actions">
+            <a href="/db.html?db=[url][db][/url]"><i class="bi bi-box-arrow-in-right"></i> Open</a>
+            <form method="post" action="/databases.html" class="d-inline">
+              <input type="hidden" name="action" value="drop_db">
+              <input type="hidden" name="f_dbname" value="[db]">
+              <button class="btn btn-link btn-sm p-0 text-danger" data-confirm="Drop database [db]? This cannot be undone."><i class="bi bi-trash"></i></button>
+            </form>
+          </td>
+        </tr>
+        [/founditems]
+      [/sqlresult]
+      </tbody>
+    </table>
+  </div>
+</div>
+
+[include file=lib/wms_foot.inc]

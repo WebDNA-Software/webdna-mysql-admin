@@ -1,0 +1,115 @@
+[!]
+  table.html?db=DB&dbtable=T[&page=N&perpage=M] — paginated row browser.
+  Columns are dynamic: we read the column list once (GROUP_CONCAT), then drive
+  both the header and each row's cells by looping that list and resolving the
+  per-row value with [interpret][[colname]][/interpret] — the same dynamic-tag
+  trick the cloud console uses. WebDNA-processed.
+[/!]
+[include file=config.inc]
+[text]cur_db=[db][/text]
+[text]cur_tbl=[dbtable][/text]
+[showif [cur_db]=][redirect /databases.html][/showif]
+[showif [cur_tbl]=][redirect /db.html?db=[url][cur_db][/url][/showif]
+[text]nav=databases[/text]
+[text]page_title=[cur_tbl][/text]
+[text]action=[action][/text]
+[text]flash=[/text][text]flashtype=success[/text]
+
+[!]-- Delete one row, identified by its primary key. f_rowwhere is built at render
+     time below from the PK columns. Runs before the list queries so the table
+     reflects the deletion. Admin already has full SQL via sql.html, so trusting
+     this clause is no wider than the existing threat model. --[/!]
+[showif [action]=delete_row][showif [f_rowwhere]!]
+  [sqlexecute conn_ref=myAdmin]
+  USE [sqlid s=[cur_db]]
+  [/sqlexecute]
+  [sqlexecute conn_ref=myAdmin]
+  DELETE FROM [sqlid s=[cur_db]].[sqlid s=[cur_tbl]] WHERE [f_rowwhere] LIMIT 1
+  [/sqlexecute]
+  [text]flash=Row deleted.[/text][text]flashtype=warning[/text]
+[/showif][/showif]
+
+[!]-- Paging inputs sanitised so they can never carry SQL into LIMIT. --[/!]
+[text]perpage=[wms_int n=[perpage]&default=30][/text]
+[showif [perpage]<1][text]perpage=30[/text][/showif]
+[text]pg=[wms_int n=[page]&default=1][/text]
+[showif [pg]<1][text]pg=1[/text][/showif]
+[text]off=[math]([pg]-1)*[perpage][/math][/text]
+
+[text]cols=[/text][text]nrows=0[/text][text]pkcols=[/text]
+[sqlexecute conn_ref=myAdmin]
+SET SESSION group_concat_max_len=1000000
+[/sqlexecute]
+[sqlexecute conn_ref=myAdmin&result_var=result_cols]
+SELECT GROUP_CONCAT(column_name ORDER BY ordinal_position SEPARATOR '|') AS cols FROM information_schema.columns WHERE table_schema='[cur_db]' AND table_name='[cur_tbl]'
+[/sqlexecute]
+[sqlresult result_ref=result_cols][founditems][text]cols=[cols][/text][/founditems][/sqlresult]
+[!]-- Primary-key columns (drives row delete; empty => no PK => delete disabled). --[/!]
+[sqlexecute conn_ref=myAdmin&result_var=result_pk]
+SELECT GROUP_CONCAT(column_name ORDER BY ordinal_position SEPARATOR '|') AS pk FROM information_schema.columns WHERE table_schema='[cur_db]' AND table_name='[cur_tbl]' AND column_key='PRI'
+[/sqlexecute]
+[sqlresult result_ref=result_pk][founditems][text]pkcols=[pk][/text][/founditems][/sqlresult]
+[sqlexecute conn_ref=myAdmin&result_var=result_count]
+SELECT COUNT(*) AS n FROM [sqlid s=[cur_db]].[sqlid s=[cur_tbl]]
+[/sqlexecute]
+[sqlresult result_ref=result_count][founditems][text]nrows=[n][/text][/founditems][/sqlresult]
+
+[!]-- Page rows (LIMIT uses the sanitised off/perpage). --[/!]
+[sqlexecute conn_ref=myAdmin&result_var=result_rows]
+SELECT * FROM [sqlid s=[cur_db]].[sqlid s=[cur_tbl]] LIMIT [off],[perpage]
+[/sqlexecute]
+
+[!]-- Row window for the footer text. --[/!]
+[text]rowfrom=[math][off]+1[/math][/text]
+[showif [nrows]=0][text]rowfrom=0[/text][/showif]
+[text]rowto=[math][off]+[perpage][/math][/text]
+[showif [rowto]>[nrows]][text]rowto=[nrows][/text][/showif]
+
+[include file=lib/wms_head.inc]
+
+<div class="crumbs"><a href="/databases.html">Databases</a><span class="sep">/</span><a href="/db.html?db=[url][cur_db][/url]">[cur_db]</a><span class="sep">/</span><span class="mono">[cur_tbl]</span></div>
+<div class="page-head">
+  <div><h1><i class="bi bi-table"></i> [cur_tbl]</h1>
+  <div class="sub">[nrows] row[showif [nrows]!1]s[/showif] &middot; showing [rowfrom]&ndash;[rowto]</div></div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-sm btn-success" href="/insert.html?db=[url][cur_db][/url]&dbtable=[url][cur_tbl][/url]"><i class="bi bi-plus-lg"></i> Add row</a>
+    <a class="btn btn-sm btn-outline-primary" href="/structure.html?db=[url][cur_db][/url]&dbtable=[url][cur_tbl][/url]"><i class="bi bi-diagram-3"></i> Structure</a>
+    <a class="btn btn-sm btn-outline-secondary" href="/sql.html?db=[url][cur_db][/url]&q=[url]SELECT * FROM `[cur_tbl]` LIMIT 100[/url]"><i class="bi bi-terminal"></i> SQL</a>
+  </div>
+</div>
+
+[showif [flash]!]<div class="alert alert-[flashtype] alert-autohide py-2">[flash]</div>[/showif]
+[showif [pkcols]=]<div class="alert alert-info py-2 small">This table has no primary key — row delete is unavailable.</div>[/showif]
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover grid mb-0">
+      <thead><tr>[listwords words=[cols]&delimiters=|]<th>[word]</th>[/listwords][showif [pkcols]!]<th class="text-end">Actions</th>[/showif]</tr></thead>
+      <tbody>
+      [text]any=0[/text]
+      [sqlresult result_ref=result_rows]
+        [founditems]
+        [text]any=1[/text]
+        <tr>[listwords words=[cols]&delimiters=|]<td>[interpret][[word]][/interpret]</td>[/listwords][showif [pkcols]!]<td class="text-end row-actions">[text]rw=[/text][listwords words=[pkcols]&delimiters=|][text]rw=[rw] AND [sqlid s=[word]]=[sqlval v=[interpret][[word]][/interpret]][/text][/listwords][text]rw=[getchars start=6&end=[countchars][rw][/countchars]][rw][/getchars][/text]<a class="me-2" href="/edit.html?db=[url][cur_db][/url]&dbtable=[url][cur_tbl][/url]&rw=[url][rw][/url]" title="Edit row"><i class="bi bi-pencil"></i></a><form method="post" action="/table.html?db=[url][cur_db][/url]&dbtable=[url][cur_tbl][/url]&page=[pg]&perpage=[perpage]" class="d-inline"><input type="hidden" name="action" value="delete_row"><input type="hidden" name="f_rowwhere" value="[rw]"><button class="btn btn-link btn-sm p-0 text-danger" data-confirm="Delete this row? This cannot be undone."><i class="bi bi-trash"></i></button></form></td>[/showif]</tr>
+        [/founditems]
+      [/sqlresult]
+      [showif [any]=0]<tr><td colspan="99"><div class="empty"><i class="bi bi-inbox"></i>No rows on this page.</div></td></tr>[/showif]
+      </tbody>
+    </table>
+  </div>
+</div>
+
+[!]-- Pager --[/!]
+<nav class="d-flex justify-content-between align-items-center mt-3">
+  <div>
+    [if ("[pg]">"1")][then]<a class="btn btn-sm btn-outline-secondary" href="/table.html?db=[url][cur_db][/url]&dbtable=[url][cur_tbl][/url]&perpage=[perpage]&page=[math][pg]-1[/math]"><i class="bi bi-chevron-left"></i> Prev</a>[/then]
+    [else]<button class="btn btn-sm btn-outline-secondary" disabled><i class="bi bi-chevron-left"></i> Prev</button>[/else][/if]
+  </div>
+  <span class="legend">Page [pg] &middot; [perpage]/page</span>
+  <div>
+    [if ("[rowto]"<"[nrows]")][then]<a class="btn btn-sm btn-outline-secondary" href="/table.html?db=[url][cur_db][/url]&dbtable=[url][cur_tbl][/url]&perpage=[perpage]&page=[math][pg]+1[/math]">Next <i class="bi bi-chevron-right"></i></a>[/then]
+    [else]<button class="btn btn-sm btn-outline-secondary" disabled>Next <i class="bi bi-chevron-right"></i></button>[/else][/if]
+  </div>
+</nav>
+
+[include file=lib/wms_foot.inc]

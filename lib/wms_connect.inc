@@ -1,0 +1,8 @@
+[text]DBtest=fail[/text]
+[sqlconnect dbtype=MySQL&host=[WMS_DB_HOST]&database=[WMS_DB_NAME]&uid=[WMS_DB_USER]&pwd=[WMS_DB_PASS]&conn_var=myAdmin]
+  [text]DBtest=[SQL_SERVERTYPE][/text]
+[/sqlconnect]
+[switch value=[DBtest]]
+	[case value=mysql][!]----- DB Connect OK -----[/!][/case]
+	[default]redirect /error_500.html[/default]
+[/switch]

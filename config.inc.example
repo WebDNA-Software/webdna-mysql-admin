@@ -1,0 +1,54 @@
+[!]
+-------------------------------------------------------------------------------
+  config.inc.example  —  per-box config template (TRACKED in git)
+-------------------------------------------------------------------------------
+  SETUP: copy this file to  config.inc  in the project root and fill it in.
+         config.inc is gitignored and must NEVER be committed.
+
+      cp config.inc.example config.inc
+      # then edit config.inc with this box's real values
+
+  USAGE: include it as the FIRST line of every page:
+
+      [include file=config.inc]
+
+  It (1) sets the static config below, (2) loads the helper functions
+  (lib/wms_db.inc) and (3) runs the admin-login guard (lib/wms_auth.inc), which
+  redirects to /login.html unless the page set [text]WMS_PUBLIC=1[/text] first
+  (login.html / logout.html do that).
+
+  TWO separate credential layers — do not confuse them:
+    * MySQL connection  -> ONE static account below (WMS_DB_*). Every admin
+      shares this single connection to the database server.
+    * Admin-system login -> each person has their OWN account (db/admins.db),
+      used only to sign in to THIS tool. Unrelated to the MySQL account.
+-------------------------------------------------------------------------------
+[/!]
+
+[!]-- App identity (sidebar brand + <title>). --[/!]
+[text]WMS_APP_NAME=WebDNA MySQLAdmin[/text]
+
+[!]-- Session secret: pepper/key for [encrypt]. CHANGE THIS to a long random
+     string per box. Changing it invalidates all existing admin passwords and
+     sessions (re-create the first admin). --[/!]
+[text]WMS_SESSION_KEY=CHANGE-ME-to-a-long-random-string-per-box[/text]
+
+[!]-- Seed for [encrypt method=AES] used to store/verify admin passwords
+     (login.html / users.html). CHANGE THIS to a long random string per box.
+     Changing it invalidates all existing admin passwords (re-create the first
+     admin). Keep secret — anyone with this seed + db/admins.db can decrypt. --[/!]
+[text]SITE-SEED=CHANGE-ME-to-a-long-random-string-per-box[/text]
+
+[!]-- The ONE static MySQL connection. [wms_conn] (lib/wms_db.inc) reads these.
+     This is the database account the tool administers WITH; keep it scoped to
+     what you need. --[/!]
+[text]WMS_DB_HOST=127.0.0.1[/text]
+[text]WMS_DB_USER=root[/text]
+[text]WMS_DB_PASS=[/text]
+[text]WMS_DB_NAME=[/text]
+[text]WMS_DB_PORT=3306[/text]
+
+[!]-- Load helpers, then enforce the admin-login guard. Keep these last. --[/!]
+[include file=lib/wms_connect.inc]
+[include file=lib/wms_db.inc]
+[include file=lib/wms_auth.inc]

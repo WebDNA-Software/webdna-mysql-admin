@@ -1,0 +1,10 @@
+# Per-box config (holds the static MySQL password) — never commit
+config.inc
+
+# Live runtime stores (created from the *.db.example templates)
+db/sessions.db
+db/admins.db
+
+# Editor / OS noise
+.DS_Store
+*.swp

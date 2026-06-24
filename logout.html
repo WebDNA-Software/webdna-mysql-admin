@@ -1,0 +1,8 @@
+[!]
+  logout.html — delete this session's row, clear the wms_token cookie, return to
+  the login page. Public (no config.inc / guard needed). WebDNA-processed.
+[/!]
+[text]tok=[getcookie name=wms_token][/text]
+[showif [tok]!][delete db=db/sessions.db&eqtokendata=[tok]][/showif]
+[setcookie name=wms_token&value=&path=/&expires=-1]
+[redirect /login.html]

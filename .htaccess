@@ -1,0 +1,8 @@
+# WebDNA MySQLAdmin — custom error documents.
+# Maps HTTP error codes to the self-contained error_NNN.html pages
+# (these do NOT include config.inc, so they render even when the DB/app is down).
+ErrorDocument 400 /error_400.html
+ErrorDocument 403 /error_403.html
+ErrorDocument 404 /error_404.html
+ErrorDocument 500 /error_500.html
+ErrorDocument 503 /error_503.html

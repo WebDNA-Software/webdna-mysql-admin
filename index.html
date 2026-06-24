@@ -1,0 +1,102 @@
+[!]
+  index.html — server dashboard. Live from the logged-in MySQL connection:
+  server version / current user, database count, and the database list with
+  per-schema table counts. WebDNA-processed (.html handler).
+[/!]
+[include file=config.inc]
+[text]nav=server[/text]
+[text]page_title=Dashboard[/text]
+
+[!]-- Scalars first (one short connection). conn_ok proves the stored creds still
+     work; if the password was changed server-side mid-session we show a notice
+     instead of a broken page. --[/!]
+[text]conn_ok=0[/text]
+[text]sv=[/text]
+[text]su=[/text]
+[text]ndb=0[/text]
+
+[!]---- do the queries ----[/!]
+[sqlexecute conn_ref=myAdmin&result_var=result1]
+SELECT VERSION() AS v, CURRENT_USER() AS u
+[/sqlexecute]
+
+[sqlexecute conn_ref=myAdmin&result_var=result2]
+SELECT COUNT(*) AS n FROM information_schema.schemata
+[/sqlexecute]
+
+[sqlexecute conn_ref=myAdmin&result_var=result3]
+SELECT s.schema_name AS db, COUNT(t.table_name) AS tbls FROM information_schema.schemata s LEFT JOIN information_schema.tables t ON t.table_schema = s.schema_name GROUP BY s.schema_name ORDER BY s.schema_name
+[/sqlexecute]
+
+[!]---- work with the results ----[/!]
+[sqlresult result_ref=result1]
+  [founditems]
+    [text]conn_ok=1[/text][text]sv=[v][/text][text]su=[u][/text]
+  [/founditems]
+[/sqlresult]
+
+[sqlresult result_ref=result2]
+  [founditems]
+    [text]ndb=[n][/text]
+  [/founditems]
+[/sqlresult]
+
+[!]---- html ----[/!]
+[include file=lib/wms_head.inc]
+
+<div class="page-head">
+  <div><h1><i class="bi bi-hdd-network"></i> Server dashboard</h1>
+  <div class="sub">Connected to <span class="mono">[WMS_DB_HOST]:[WMS_DB_PORT]</span></div></div>
+</div>
+
+[if "[conn_ok]"!"1"]
+  [then]
+    <div class="alert alert-warning">Could not query MySQL at <span class="mono">[WMS_DB_HOST]:[WMS_DB_PORT]</span>. Check the connection settings in <span class="mono">config.inc</span> (<code>WMS_DB_*</code>).</div>
+  [/then]
+  [else]
+    <div class="row g-3 mb-1">
+      <div class="col-6 col-xl-3"><div class="card h-100"><div class="card-body stat d-flex align-items-center gap-3">
+        <div class="ico bg-soft-blue"><i class="bi bi-stack"></i></div>
+        <div><div class="label">Databases</div><div class="num">[!]---- [ndb] ----[/!]</div></div>
+      </div></div></div>
+      <div class="col-6 col-xl-3"><div class="card h-100"><div class="card-body stat d-flex align-items-center gap-3">
+        <div class="ico bg-soft-blue"><i class="bi bi-database-check"></i></div>
+        <div><div class="label">Server</div><div class="num" style="font-size:1rem;">MySQL</div><span class="legend mono">[sv]</span></div>
+      </div></div></div>
+      <div class="col-6 col-xl-3"><div class="card h-100"><div class="card-body stat d-flex align-items-center gap-3">
+        <div class="ico bg-soft-blue"><i class="bi bi-person-badge"></i></div>
+        <div><div class="label">User</div><div class="num" style="font-size:1rem;">[su]</div></div>
+      </div></div></div>
+      <div class="col-6 col-xl-3"><div class="card h-100"><div class="card-body stat d-flex align-items-center gap-3">
+        <div class="ico bg-soft-blue"><i class="bi bi-terminal"></i></div>
+        <div><div class="label">Quick action</div><a class="btn btn-sm btn-success mt-1" href="/sql.html"><i class="bi bi-play"></i> Run SQL</a></div>
+      </div></div></div>
+    </div>
+    <div class="card mt-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        Databases
+        <a class="small text-decoration-none" href="/databases.html">Manage <i class="bi bi-arrow-right-short"></i></a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead><tr><th style="width:60%">Database</th><th class="text-end">Tables</th><th></th></tr></thead>
+          <tbody>
+
+          [sqlresult result_ref=result3]
+            [founditems]
+              <tr>
+                <td><a class="db-link" href="/db.html?db=[url][db][/url]"><i class="bi bi-stack"></i>[db]</a></td>
+                <td class="text-end">[tbls]</td>
+                <td class="text-end"><a class="row-actions" href="/sql.html?db=[url][db][/url]"><i class="bi bi-terminal"></i> SQL</a></td>
+              </tr>
+              [/founditems]
+          [/sqlresult]
+
+          </tbody>
+        </table>
+      </div>
+    </div>
+  [/else]
+[/if]
+
+[include file=lib/wms_foot.inc]

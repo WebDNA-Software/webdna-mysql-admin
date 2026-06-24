@@ -1,0 +1,77 @@
+[!]
+  import.html — run a SQL script against a chosen database. The script is split
+  on ';' into statements and each is executed in order. (Naive split: a ';'
+  inside a string literal would split wrongly — fine for typical dumps; quoted-
+  semicolon handling and .sql file upload are roadmap items.) WebDNA-processed.
+[/!]
+[include file=config.inc]
+[text]nav=import[/text]
+[text]page_title=Import[/text]
+[text]cur_db=[db][/text]
+[text]newsql=[newsql][/text]
+[text]ran=0[/text][text]nstmt=0[/text]
+[text]msg=[/text][text]msgtype=success[/text]
+[text]action=[action][/text]
+
+[showif [action]=import_sql]
+  [if ("[cur_db]"="")][then][text]msg=Pick a database to import into.[/text][text]msgtype=danger[/text][/then]
+  [else][if ("[newsql]"="")][then][text]msg=Nothing to import — the script was empty.[/text][text]msgtype=danger[/text][/then]
+  [else]
+    [text]ran=1[/text]
+    [sqlexecute conn_ref=myAdmin]
+    USE [sqlid s=[cur_db]]
+    [/sqlexecute]
+    [listwords words=[newsql]&delimiters=;]
+      [!]-- skip whitespace-only statements (strip all whitespace, check length) --[/!]
+      [text]_s=[grep search=(\s)&replace=][word][/grep][/text]
+      [showif [_s]!]
+        [sqlexecute conn_ref=myAdmin]
+        [word]
+        [/sqlexecute]
+        [text]nstmt=[math][nstmt]+1[/math][/text]
+      [/showif]
+    [/listwords]
+    [text]msg=Executed [nstmt] statement(s) against [cur_db].[/text]
+  [/else][/if][/else][/if]
+[/showif]
+
+[!]-- Target-database dropdown options: all databases. --[/!]
+[sqlexecute conn_ref=myAdmin&result_var=result_dblist]
+SELECT schema_name AS s FROM information_schema.schemata ORDER BY schema_name
+[/sqlexecute]
+
+[include file=lib/wms_head.inc]
+
+<div class="page-head">
+  <div><h1><i class="bi bi-box-arrow-in-down"></i> Import</h1>
+  <div class="sub">Run a SQL script against a database</div></div>
+</div>
+
+[showif [msg]!]<div class="alert alert-[msgtype] py-2">[msg]</div>[/showif]
+
+<div class="card">
+  <div class="card-body">
+    <form method="post" action="/import.html">
+      <input type="hidden" name="action" value="import_sql">
+      <div class="row g-2 mb-2">
+        <div class="col-auto">
+          <label class="form-label small mb-1">Target database</label>
+          <select class="form-select form-select-sm" name="db" required>
+            <option value="">&mdash; choose &mdash;</option>
+            [sqlresult result_ref=result_dblist][founditems]<option value="[s]"[showif [s]=[cur_db]] selected[/showif]>[s]</option>[/founditems][/sqlresult]
+          </select>
+        </div>
+      </div>
+      <label class="form-label small mb-1">SQL script</label>
+      <textarea class="form-control sql-box" name="newsql" placeholder="-- paste a .sql dump here&#10;CREATE TABLE ...;&#10;INSERT INTO ...;">[newsql]</textarea>
+      <div class="d-flex justify-content-between align-items-center mt-2">
+        <span class="legend">Statements are split on <code>;</code> and run in order.</span>
+        <button class="btn btn-success" type="submit"><i class="bi bi-upload"></i> Import</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<p class="legend mt-3"><i class="bi bi-info-circle"></i> Roadmap: <code>.sql</code> / <code>.csv</code> file upload and CSV-to-table import.</p>
+
+[include file=lib/wms_foot.inc]

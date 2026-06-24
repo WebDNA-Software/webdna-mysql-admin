@@ -1,0 +1,86 @@
+/* custom.css — WebDNA MySQLAdmin shell + screens.
+   Loaded after Bootstrap 5.3; served static by Apache (NOT WebDNA-processed). */
+:root{
+  --bs-primary:#1d6fb8; --bs-primary-rgb:29,111,184;
+  --ink:#0d1424; --line:#e6e9ef; --muted:#6b7588; --brand:#C61D23; --bar-h:63px;
+  --accent:#e8772e; /* phpMyAdmin-ish orange accents */
+}
+body{ font-family:'Inter',system-ui,sans-serif; background:#f4f6fa; color:#1d2433; font-size:.925rem; }
+.app{display:flex;min-height:100vh;}
+
+/* Sidebar */
+.sidebar{ width:236px;flex:0 0 236px;background:var(--brand);color:#aeb7c7;position:sticky;top:0;height:100vh;overflow-y:auto; }
+.sidebar .brand{ height:var(--bar-h);padding:0 18px;color:#fff;font-weight:700;font-size:18px;letter-spacing:-.01em;
+  display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.12); }
+.sidebar .brand i{color:#fff;font-size:1.3rem;}
+.sidebar .nav-group{padding:14px 14px 4px;font-size:.68rem;text-transform:uppercase;
+  letter-spacing:.09em;color:#fff;font-weight:600;border-bottom:1px solid rgba(255,255,255,.3);}
+.sidebar .nav-link{ color:#ffffff;border-radius:8px;padding:8px 12px;margin:1px 8px;
+  display:flex;align-items:center;gap:11px;font-weight:500;cursor:pointer;text-decoration:none; }
+.sidebar .nav-link i{font-size:1.05rem;width:18px;text-align:center;}
+.sidebar .nav-link:hover{background:rgba(255,255,255,.08);color:#fff;}
+.sidebar .nav-link.active{background:rgba(0,0,0,.22);color:#fff;font-weight:600;}
+
+/* Topbar */
+.main{flex:1;min-width:0;display:flex;flex-direction:column;}
+.topbar{ height:var(--bar-h);background:#fff;border-bottom:1px solid var(--line);padding:0 22px;
+  display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:5; }
+.conn-pill{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.78rem;
+  border:1px solid var(--line);border-radius:20px;padding:5px 12px;display:flex;align-items:center;gap:7px;
+  color:#3a4658;white-space:nowrap;background:#f8fafc;}
+
+/* Content */
+.content{padding:24px;max-width:1320px;width:100%;}
+.page-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:18px;}
+.page-head h1{font-size:1.4rem;font-weight:700;letter-spacing:-.02em;margin:0;}
+.page-head h1 i{color:#C61D23;}
+.page-head .sub{color:var(--muted);font-size:.85rem;margin-top:2px;}
+
+/* Breadcrumb */
+.crumbs{font-size:.82rem;margin-bottom:14px;color:var(--muted);}
+.crumbs a{text-decoration:none;color:var(--bs-primary);}
+.crumbs .sep{margin:0 7px;color:#c2cad6;}
+
+/* Cards / stats */
+.card{border:1px solid var(--line);border-radius:13px;box-shadow:0 1px 2px rgba(15,23,42,.03);}
+.card-header{background:#fff;border-bottom:1px solid var(--line);font-weight:600;border-radius:13px 13px 0 0!important;padding:13px 18px;}
+.stat .label{color:var(--muted);font-size:.78rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;}
+.stat .num{font-size:1.7rem;font-weight:700;letter-spacing:-.02em;line-height:1.1;}
+.stat .ico{width:42px;height:42px;border-radius:10px;display:grid;place-items:center;font-size:1.25rem;}
+.bg-soft-blue{background:rgba(29,111,184,.10);color:#1d6fb8;}
+.bg-soft-green{background:rgba(0,153,49,.12);color:#067a3f;}
+.bg-soft-amber{background:rgba(232,119,46,.14);color:#c25e18;}
+.bg-soft-purple{background:rgba(111,66,193,.12);color:#6f42c1;}
+
+/* Tables / result grid */
+.table{font-size:.86rem;}
+.table thead th{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600;
+  border-bottom:1px solid var(--line);white-space:nowrap;}
+.table td{vertical-align:middle;}
+.table.grid{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.8rem;}
+.table.grid td{max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.table.grid td.null{color:#aab2bf;font-style:italic;}
+.row-actions a{color:var(--muted);text-decoration:none;margin-right:9px;font-size:.82rem;}
+.row-actions a:hover{color:var(--bs-primary);}
+
+/* Keyish badges */
+.kbadge{font-size:.66rem;font-weight:700;border-radius:4px;padding:1px 5px;text-transform:uppercase;letter-spacing:.03em;}
+.k-pri{background:#fde9d6;color:#b4540f;}
+.k-uni{background:#dceafc;color:#1d6fb8;}
+.k-mul{background:#eef1f6;color:#647187;}
+
+/* SQL editor */
+.sql-box{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.86rem;line-height:1.5;
+  min-height:150px;border-radius:10px;border:1px solid var(--line);background:#0d1424;color:#d7e3f4;padding:14px;}
+.sql-box:focus{box-shadow:0 0 0 .2rem rgba(29,111,184,.25);border-color:var(--bs-primary);background:#0d1424;color:#d7e3f4;}
+
+/* Misc */
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.82rem;}
+.legend{font-size:.78rem;color:var(--muted);}
+.chip{font-size:.74rem;background:#eef1f6;border-radius:5px;padding:2px 8px;color:#475569;}
+.db-link,.tbl-link{text-decoration:none;font-weight:600;color:var(--bs-primary);}
+.db-link i,.tbl-link i{color:#C61D23;margin-right:6px;}
+.empty{padding:40px;text-align:center;color:var(--muted);}
+.empty i{font-size:2rem;color:#c2cad6;display:block;margin-bottom:10px;}
+
+@media(max-width:860px){ .sidebar{position:fixed;left:-260px;transition:.2s;z-index:50;} .sidebar.open{left:0;} .content{padding:16px;} }

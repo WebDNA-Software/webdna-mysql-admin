@@ -1,0 +1,118 @@
+[!]
+  export.html?db=DB[&dbtable=T] — dump to SQL (DDL + INSERTs) or CSV.
+    * SQL  : whole database (all base tables) or a single table.
+    * CSV  : a single table only (pick a table).
+  Output is rendered into a copyable textarea. Per-row values are escaped via
+  the [sqlval]/[csvval] helpers. Caveats (v1): a NULL reads as "" (exports as
+  empty), and a real file download is a roadmap item. WebDNA-processed.
+[/!]
+[include file=config.inc]
+[text]nav=export[/text]
+[text]page_title=Export[/text]
+[text]cur_db=[db][/text]
+[text]cur_tbl=[dbtable][/text]
+[text]fmt=[fmt][/text][showif [fmt]=][text]fmt=sql[/text][/showif]
+[text]ran=0[/text][text]msg=[/text][text]msgtype=success[/text]
+[text]action=[action][/text]
+
+[!]-- Resolve the set of tables to dump into [tbls] (| delimited). --[/!]
+[text]tbls=[/text]
+[showif [action]=export]
+  [if ("[cur_db]"="")][then][text]msg=Pick a database to export.[/text][text]msgtype=danger[/text][/then]
+  [else][if ("[fmt]"="csv")&("[cur_tbl]"="")][then][text]msg=CSV export needs a single table — choose one.[/text][text]msgtype=danger[/text][/then]
+  [else]
+    [text]ran=1[/text]
+    [if ("[cur_tbl]"!"")][then][text]tbls=[cur_tbl][/text][/then]
+    [else]
+      [sqlexecute conn_ref=myAdmin]
+      SET SESSION group_concat_max_len=1000000
+      [/sqlexecute]
+      [sqlexecute conn_ref=myAdmin&result_var=result_tbls]
+      SELECT GROUP_CONCAT(table_name ORDER BY table_name SEPARATOR '|') AS t FROM information_schema.tables WHERE table_schema='[cur_db]' AND table_type='BASE TABLE'
+      [/sqlexecute]
+      [sqlresult result_ref=result_tbls][founditems][text]tbls=[t][/text][/founditems][/sqlresult]
+    [/else][/if]
+  [/else][/if][/else][/if]
+[/showif]
+
+[!]-- Dropdown options: all databases (always), and the chosen db's tables. --[/!]
+[sqlexecute conn_ref=myAdmin&result_var=result_dblist]
+SELECT schema_name AS s FROM information_schema.schemata ORDER BY schema_name
+[/sqlexecute]
+[showif [cur_db]!]
+[sqlexecute conn_ref=myAdmin&result_var=result_tablist]
+SELECT table_name AS t FROM information_schema.tables WHERE table_schema='[cur_db]' AND table_type='BASE TABLE' ORDER BY table_name
+[/sqlexecute]
+[/showif]
+
+[include file=lib/wms_head.inc]
+
+<div class="crumbs">[showif [cur_db]!]<a href="/db.html?db=[url][cur_db][/url]">[cur_db]</a><span class="sep">/</span>[/showif]Export</div>
+<div class="page-head">
+  <div><h1><i class="bi bi-box-arrow-up"></i> Export</h1>
+  <div class="sub">Dump a database or table</div></div>
+</div>
+
+[showif [msg]!]<div class="alert alert-[msgtype] py-2">[msg]</div>[/showif]
+
+<div class="card mb-3">
+  <div class="card-body">
+    <form method="get" action="/export.html" class="row g-2 align-items-end">
+      <input type="hidden" name="action" value="export" id="exp_action">
+      <div class="col-auto">
+        <label class="form-label small mb-1">Database</label>
+        <select class="form-select form-select-sm" name="db" required onchange="document.getElementById('exp_action').value='pick';this.form.submit();">
+          <option value="">&mdash; choose &mdash;</option>
+          [sqlresult result_ref=result_dblist][founditems]<option value="[s]"[showif [s]=[cur_db]] selected[/showif]>[s]</option>[/founditems][/sqlresult]
+        </select>
+      </div>
+      <div class="col-auto">
+        <label class="form-label small mb-1">Table (optional for SQL)</label>
+        <select class="form-select form-select-sm" name="dbtable">
+          <option value="">all tables</option>
+          [showif [cur_db]!][sqlresult result_ref=result_tablist][founditems]<option value="[t]"[showif [t]=[cur_tbl]] selected[/showif]>[t]</option>[/founditems][/sqlresult][/showif]
+        </select>
+      </div>
+      <div class="col-auto">
+        <label class="form-label small mb-1">Format</label>
+        <select class="form-select form-select-sm" name="fmt">
+          <option value="sql"[showif [fmt]=sql] selected[/showif]>SQL</option>
+          <option value="csv"[showif [fmt]=csv] selected[/showif]>CSV</option>
+        </select>
+      </div>
+      <div class="col-auto"><button class="btn btn-sm btn-success"><i class="bi bi-download"></i> Generate</button></div>
+    </form>
+  </div>
+</div>
+
+[showif [ran]=1]
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    Dump <span class="legend">[fmt] &middot; [cur_db][showif [cur_tbl]!].[cur_tbl][/showif]</span>
+    <button class="btn btn-sm btn-outline-secondary" type="button" onclick="var t=document.getElementById('dump');t.select();document.execCommand('copy');"><i class="bi bi-clipboard"></i> Copy</button>
+  </div>
+  <div class="card-body">
+    <textarea id="dump" class="form-control sql-box" style="min-height:380px" readonly>[!]-- DUMP BODY --[/!]
+[switch value=[fmt]][case value=sql]-- WebDNA MySQLAdmin SQL dump
+-- Database: [cur_db]
+SET FOREIGN_KEY_CHECKS=0;
+
+[listwords words=[tbls]&delimiters=|][text]T=[word][/text]
+-- ----- Table `[T]` -----
+DROP TABLE IF EXISTS `[T]`;
+[sqlexecute conn_ref=myAdmin&result_var=result_create]SHOW CREATE TABLE [sqlid s=[cur_db]].[sqlid s=[T]][/sqlexecute][sqlresult result_ref=result_create][founditems][field name=Create Table];[/founditems][/sqlresult]
+
+[text]cols=[/text][sqlexecute conn_ref=myAdmin&result_var=result_cols]SELECT GROUP_CONCAT(column_name ORDER BY ordinal_position SEPARATOR '|') AS c FROM information_schema.columns WHERE table_schema='[cur_db]' AND table_name='[T]'[/sqlexecute][sqlresult result_ref=result_cols][founditems][text]cols=[c][/text][/founditems][/sqlresult][text]colsql=[/text][listwords words=[cols]&delimiters=|][text]colsql=[colsql],`[word]`[/text][/listwords][text]colsql=[getchars start=2&end=[countchars][colsql][/countchars]][colsql][/getchars][/text][sqlexecute conn_ref=myAdmin&result_var=result_rows]SELECT * FROM [sqlid s=[cur_db]].[sqlid s=[T]][/sqlexecute][sqlresult result_ref=result_rows][founditems][text]valbuf=[/text][listwords words=[cols]&delimiters=|][text]valbuf=[valbuf],[sqlval v=[interpret][[word]][/interpret]][/text][/listwords]INSERT INTO `[T]` ([colsql]) VALUES ([getchars start=2&end=[countchars][valbuf][/countchars]][valbuf][/getchars]);
+[/founditems][/sqlresult]
+[/listwords]
+SET FOREIGN_KEY_CHECKS=1;
+[/case][case value=csv][sqlexecute conn_ref=myAdmin]SET SESSION group_concat_max_len=1000000[/sqlexecute][text]cols=[/text][sqlexecute conn_ref=myAdmin&result_var=result_csvcols]SELECT GROUP_CONCAT(column_name ORDER BY ordinal_position SEPARATOR '|') AS c FROM information_schema.columns WHERE table_schema='[cur_db]' AND table_name='[cur_tbl]'[/sqlexecute][sqlresult result_ref=result_csvcols][founditems][text]cols=[c][/text][/founditems][/sqlresult][text]hdr=[/text][listwords words=[cols]&delimiters=|][text]hdr=[hdr],[csvval v=[word]][/text][/listwords][getchars start=2&end=[countchars][hdr][/countchars]][hdr][/getchars]
+[sqlexecute conn_ref=myAdmin&result_var=result_csvrows]SELECT * FROM [sqlid s=[cur_db]].[sqlid s=[cur_tbl]][/sqlexecute][sqlresult result_ref=result_csvrows][founditems][text]line=[/text][listwords words=[cols]&delimiters=|][text]line=[line],[csvval v=[interpret][[word]][/interpret]][/text][/listwords][getchars start=2&end=[countchars][line][/countchars]][line][/getchars]
+[/founditems][/sqlresult][/case][/switch][!]-- /DUMP BODY --[/!]</textarea>
+  </div>
+</div>
+[/showif]
+
+<p class="legend mt-3"><i class="bi bi-info-circle"></i> Roadmap: streamed file download (Content-Disposition), gzip, and per-table row limits.</p>
+
+[include file=lib/wms_foot.inc]

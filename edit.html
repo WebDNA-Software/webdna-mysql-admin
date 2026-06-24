@@ -1,0 +1,102 @@
+[!]
+  edit.html?db=DB&dbtable=T&rw=WHERE — edit a single row.
+
+  The row is identified by [rw] — the same PK-based WHERE that table.html builds
+  per row, URL-encoded into the Edit link. On save we build
+  UPDATE `db`.`tbl` SET `col`=val, ... WHERE [rw] LIMIT 1 from the submitted
+  c_<col> fields, then return to the browse page. Columns are dynamic, driven by
+  the GROUP_CONCAT column list (same trick as table.html). WebDNA-processed.
+[/!]
+[include file=config.inc]
+[text]cur_db=[db][/text]
+[text]cur_tbl=[dbtable][/text]
+[text]rw=[rw][/text]
+[showif [cur_db]=][redirect /databases.html][/showif]
+[showif [cur_tbl]=][redirect /db.html?db=[url][cur_db][/url][/showif]
+[showif [rw]=][redirect /table.html?db=[url][cur_db][/url]&dbtable=[url][cur_tbl][/url][/showif]
+[text]nav=databases[/text]
+[text]page_title=Edit row[/text]
+[text]action=[action][/text]
+
+[!]-- Column list: drives both the form fields and the UPDATE SET clause. --[/!]
+[text]cols=[/text]
+[sqlexecute conn_ref=myAdmin]
+SET SESSION group_concat_max_len=1000000
+[/sqlexecute]
+[sqlexecute conn_ref=myAdmin&result_var=result_cols]
+SELECT GROUP_CONCAT(column_name ORDER BY ordinal_position SEPARATOR '|') AS cols FROM information_schema.columns WHERE table_schema='[cur_db]' AND table_name='[cur_tbl]'
+[/sqlexecute]
+[sqlresult result_ref=result_cols][founditems][text]cols=[cols][/text][/founditems][/sqlresult]
+[!]-- Temporal columns (date/datetime/timestamp/time/year). Excluded from the edit
+     form and the UPDATE — MySQL manages them, and WebDNA hands them back in d/m/Y
+     display format that can't be sent back verbatim. --[/!]
+[text]datecols=[/text]
+[sqlexecute conn_ref=myAdmin&result_var=result_datecols]
+SELECT GROUP_CONCAT(column_name ORDER BY ordinal_position SEPARATOR '|') AS dc FROM information_schema.columns WHERE table_schema='[cur_db]' AND table_name='[cur_tbl]' AND data_type IN ('date','datetime','timestamp','time','year')
+[/sqlexecute]
+[sqlresult result_ref=result_datecols][founditems][text]datecols=[dc][/text][/founditems][/sqlresult]
+
+[!]-- Save: build "`col`=val, ..." from the submitted c_<col> fields (leading
+     comma trimmed), UPDATE the row identified by [rw], then back to browse. --[/!]
+[showif [action]=save_row]
+  [!]-- Build SET from ONLY the columns that actually changed: re-load the original
+       row and compare each column to the submitted c_<col>. This avoids rewriting
+       untouched values — notably DATETIME columns, which WebDNA hands back in d/m/Y
+       display format that MySQL won't accept verbatim, and NULLs (which read as ''). --[/!]
+  [text]setsql=[/text]
+  [sqlexecute conn_ref=myAdmin&result_var=result_orig]
+  SELECT * FROM [sqlid s=[cur_db]].[sqlid s=[cur_tbl]] WHERE [rw] LIMIT 1
+  [/sqlexecute]
+  [sqlresult result_ref=result_orig][founditems][listwords words=[cols]&delimiters=|][showif [findstring source=|[datecols]|&find=|[word]|]=0][text]oldv=[interpret][[word]][/interpret][/text][text]newv=[interpret][c_[word]][/interpret][/text][if ("[oldv]"!"[newv]")][then][text]setsql=[setsql],[sqlid s=[word]]=[sqlval v=[newv]][/text][/then][/if][/showif][/listwords][/founditems][/sqlresult]
+  [showif [setsql]!]
+    [text]setsql=[getchars start=2&end=[countchars][setsql][/countchars]][setsql][/getchars][/text]
+    [sqlexecute conn_ref=myAdmin]
+    USE [sqlid s=[cur_db]]
+    [/sqlexecute]
+    [sqlexecute conn_ref=myAdmin]
+    UPDATE [sqlid s=[cur_db]].[sqlid s=[cur_tbl]] SET [setsql] WHERE [rw] LIMIT 1
+    [/sqlexecute]
+  [/showif]
+  [redirect /table.html?db=[url][cur_db][/url]&dbtable=[url][cur_tbl][/url]]
+[/showif]
+
+[!]-- Load the current row to pre-fill the form. --[/!]
+[sqlexecute conn_ref=myAdmin&result_var=result_row]
+SELECT * FROM [sqlid s=[cur_db]].[sqlid s=[cur_tbl]] WHERE [rw] LIMIT 1
+[/sqlexecute]
+
+[include file=lib/wms_head.inc]
+
+<div class="crumbs"><a href="/databases.html">Databases</a><span class="sep">/</span><a href="/db.html?db=[url][cur_db][/url]">[cur_db]</a><span class="sep">/</span><a href="/table.html?db=[url][cur_db][/url]&dbtable=[url][cur_tbl][/url]">[cur_tbl]</a><span class="sep">/</span>edit</div>
+<div class="page-head">
+  <div><h1><i class="bi bi-pencil-square"></i> Edit row</h1>
+  <div class="sub"><span class="mono">[cur_db]</span> &middot; <span class="mono">[cur_tbl]</span></div></div>
+  <a class="btn btn-sm btn-outline-secondary" href="/table.html?db=[url][cur_db][/url]&dbtable=[url][cur_tbl][/url]"><i class="bi bi-x-lg"></i> Cancel</a>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <form method="post" action="/edit.html?db=[url][cur_db][/url]&dbtable=[url][cur_tbl][/url]&rw=[url][rw][/url]">
+      <input type="hidden" name="action" value="save_row">
+      [text]found=0[/text]
+      [sqlresult result_ref=result_row]
+        [founditems]
+        [text]found=1[/text]
+        [listwords words=[cols]&delimiters=|]
+        <div class="mb-2">
+          <label class="form-label small mb-1 mono">[word][showif [findstring source=|[datecols]|&find=|[word]|]>0] <span class="legend">&mdash; managed by MySQL</span>[/showif]</label>
+          [if "[findstring source=|[datecols]|&find=|[word]|]"="0"]
+            [then]<input class="form-control form-control-sm" name="c_[word]" value="[interpret][[word]][/interpret]">[/then]
+            [else]<input class="form-control form-control-sm" value="[interpret][[word]][/interpret]" disabled>[/else]
+          [/if]
+        </div>
+        [/listwords]
+        [/founditems]
+      [/sqlresult]
+      [showif [found]=0]<div class="alert alert-warning py-2">Row not found — it may have been deleted.</div>[/showif]
+      [showif [found]=1]<div class="mt-3"><button class="btn btn-success"><i class="bi bi-save"></i> Save changes</button> <a class="btn btn-link" href="/table.html?db=[url][cur_db][/url]&dbtable=[url][cur_tbl][/url]">Cancel</a></div>[/showif]
+    </form>
+  </div>
+</div>
+
+[include file=lib/wms_foot.inc]

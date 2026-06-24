@@ -1,0 +1,125 @@
+[!]
+  sql.html[?db=DB&q=QUERY] — run arbitrary SQL.
+
+  Result metadata ([numfound]/[numrowsaffected]/[insertid]) always works.
+
+  GRID RENDERING for SELECT results is the hard part: WebDNA can read a result
+  column by NAME but has no documented way to *enumerate* an arbitrary result's
+  column names. So for a clean single SELECT/WITH with a database selected we
+  MATERIALIZE it into a scratch table, read its columns from information_schema,
+  render the grid with the dynamic [interpret][[col]][/interpret] trick, then
+  drop it. Requires CREATE/DROP on the selected database. Non-SELECT statements
+  (INSERT/UPDATE/DDL/...) just execute and report rows affected.
+
+  Grid mode is used only when ALL of these hold (else: metadata-only):
+    * a database is selected
+    * the query begins with SELECT or WITH
+    * the query has no ';' (single statement; don't terminate with a semicolon)
+  WebDNA-processed.
+[/!]
+[include file=config.inc]
+[text]nav=sql[/text]
+[text]page_title=SQL[/text]
+[text]cur_db=[db][/text]
+[text]q=[q][/text]
+[text]ran=0[/text]
+[text]msg=[/text][text]msgtype=success[/text]
+[text]gridcols=[/text][text]gridmode=0[/text]
+[text]action=[action][/text]
+
+[showif [action]=run]
+  [text]ran=1[/text]
+
+  [!]-- Classify the statement by its first token (no leading-space trim: start
+       the query at column 1). --[/!]
+  [text]q6=[lowercase][getchars start=1&end=6][q][/getchars][/lowercase][/text]
+  [text]q4=[lowercase][getchars start=1&end=4][q][/getchars][/lowercase][/text]
+  [text]is_select=0[/text]
+  [showif [q6]=select][text]is_select=1[/text][/showif]
+  [showif [q4]=with][text]is_select=1[/text][/showif]
+  [text]has_semi=0[/text][showif [findstring source=[q]&find=;]>0][text]has_semi=1[/text][/showif]
+
+  [if ([is_select]=1)&([cur_db]!)&([has_semi]=0)][then]
+    [!]-- GRID MODE: materialize -> introspect -> render -> drop. --[/!]
+    [text]gridmode=1[/text]
+    [sqlexecute conn_ref=myAdmin]
+    USE [sqlid s=[cur_db]]
+    [/sqlexecute]
+    [sqlexecute conn_ref=myAdmin]
+    SET SESSION group_concat_max_len=1000000
+    [/sqlexecute]
+    [sqlexecute conn_ref=myAdmin]
+    DROP TABLE IF EXISTS [sqlid s=[cur_db]].[sqlid s=_wms_res]
+    [/sqlexecute]
+    [sqlexecute conn_ref=myAdmin]
+    CREATE TABLE [sqlid s=[cur_db]].[sqlid s=_wms_res] AS SELECT * FROM ([q]) AS _wms_sub LIMIT 500
+    [/sqlexecute]
+    [sqlexecute conn_ref=myAdmin&result_var=result_gridcols]
+    SELECT GROUP_CONCAT(column_name ORDER BY ordinal_position SEPARATOR '|') AS cols FROM information_schema.columns WHERE table_schema='[cur_db]' AND table_name='_wms_res'
+    [/sqlexecute]
+    [sqlresult result_ref=result_gridcols][founditems][text]gridcols=[cols][/text][/founditems][/sqlresult]
+    [text]msg=Query executed.[/text]
+  [/then][else]
+    [!]-- METADATA MODE: execute directly, report effect. --[/!]
+    [showif [cur_db]!][sqlexecute conn_ref=myAdmin]
+    USE [sqlid s=[cur_db]]
+    [/sqlexecute][/showif]
+    [sqlexecute conn_ref=myAdmin&result_var=result_q]
+    [q]
+    [/sqlexecute]
+    [sqlresult result_ref=result_q][text]msg=OK &mdash; [numfound] row(s) returned, [numrowsaffected] affected[showif [insertid]>0], last insert id [insertid][/showif].[/text][/sqlresult]
+  [/else][/if]
+[/showif]
+
+[include file=lib/wms_head.inc]
+
+<div class="crumbs">[showif [cur_db]!]<a href="/db.html?db=[url][cur_db][/url]">[cur_db]</a><span class="sep">/</span>[/showif]SQL</div>
+<div class="page-head">
+  <div><h1><i class="bi bi-terminal"></i> SQL</h1>
+  <div class="sub">[if ("[cur_db]"!"")][then]Running against <span class="mono">[cur_db]</span>[/then][else]No database selected &mdash; server context[/else][/if]</div></div>
+</div>
+
+<form method="post" action="/sql.html" class="mb-3">
+  <input type="hidden" name="action" value="run">
+  <div class="row g-2 mb-2">
+    <div class="col-auto">
+      <label class="form-label small mb-1">Database (optional, required for result grid)</label>
+      <input class="form-control form-control-sm" name="db" value="[cur_db]" placeholder="database">
+    </div>
+  </div>
+  <textarea class="form-control sql-box" name="q" placeholder="SELECT * FROM ...">[q]</textarea>
+  <div class="d-flex justify-content-between align-items-center mt-2">
+    <span class="legend">Ctrl/Cmd&nbsp;+&nbsp;Enter to run. Grid mode needs a single SELECT with no trailing semicolon.</span>
+    <button class="btn btn-success" type="submit"><i class="bi bi-play-fill"></i> Run</button>
+  </div>
+</form>
+
+[showif [ran]=1]
+  [showif [msg]!]<div class="alert alert-[msgtype] py-2">[msg]</div>[/showif]
+  [showif [gridmode]=1]
+  <div class="card">
+    <div class="card-header">Result <span class="legend">(first 500 rows)</span></div>
+    <div class="table-responsive">
+      <table class="table table-hover grid mb-0">
+        <thead><tr>[listwords words=[gridcols]&delimiters=|]<th>[word]</th>[/listwords]</tr></thead>
+        <tbody>
+        [text]any=0[/text]
+        [sqlexecute conn_ref=myAdmin&result_var=result_grid]
+        SELECT * FROM [sqlid s=[cur_db]].[sqlid s=_wms_res]
+        [/sqlexecute]
+        [sqlresult result_ref=result_grid][founditems]
+        [text]any=1[/text]
+        <tr>[listwords words=[gridcols]&delimiters=|]<td>[interpret][[word]][/interpret]</td>[/listwords]</tr>
+        [/founditems][/sqlresult]
+        [sqlexecute conn_ref=myAdmin]
+        DROP TABLE IF EXISTS [sqlid s=[cur_db]].[sqlid s=_wms_res]
+        [/sqlexecute]
+        [showif [any]=0]<tr><td colspan="99"><div class="empty"><i class="bi bi-inbox"></i>No rows.</div></td></tr>[/showif]
+        </tbody>
+      </table>
+    </div>
+  </div>
+  [/showif]
+[/showif]
+
+[include file=lib/wms_foot.inc]

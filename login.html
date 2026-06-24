@@ -1,0 +1,136 @@
+[!]
+  login.html — admin-system login (NOT the MySQL connection; that's the static
+  account in config.inc). Authenticates a person against db/admins.db.
+  First run: if db/admins.db has no accounts, this page lets you create the first
+  admin instead of logging in. Passwords are encrypted via [encrypt method=AES] (SITE-SEED).
+  Declares itself PUBLIC so config.inc's guard does not redirect. WebDNA-processed.
+[/!]
+[text]WMS_PUBLIC=1[/text]
+[include file=config.inc]
+
+[!]-- Already signed in? go to the dashboard. --[/!]
+[showif [WMS_AUTHED]=1][redirect /][/showif]
+
+[!]-- Any admin accounts yet? --[/!]
+[text]nusers=0[/text]
+[search db=db/admins.db&neMYADMINUSERdatarq=[blank]&max=5000]
+  [text]nusers=[numfound][/text]
+[/search]
+[text]err=[/text]
+[text]action=[action][/text]
+[text]uname=[grep search=([^a-zA-Z0-9_.@-])&replace=][f_user][/grep][/text]
+
+[!]-- Create the first admin (only valid while no accounts exist). --[/!]
+[if ("[action]"="setup")&("[nusers]"="0")]
+  [then]
+    [if ("[uname]"!"")&("[f_pass]"!"")]
+      [then]
+        [append db=db/admins.db][!]
+          [/!]myadminuser=[uname][!]
+          [/!]&passhash=[encrypt method=AES&seed=[SITE-SEED]][f_pass][/encrypt][!]
+          [/!]&created=[date] [time][!]
+        [/!][/append]
+        [text]WMS_NEW_TOKEN=[cart][/text]
+        [append db=db/sessions.db][!]
+          [/!]token=[WMS_NEW_TOKEN][!]
+          [/!]&myadminuser=[uname][!]
+          [/!]&created=[date] [time][!]
+          [/!]&lastseen=[date] [time][!]
+        [/!][/append]
+        [setcookie name=wms_token&value=[WMS_NEW_TOKEN]&path=/]
+        [redirect /]
+      [/then]
+      [else]
+        [text]err=Choose a username and a non-empty password.[/text]
+      [/else]
+    [/if]
+  [/then]
+  [else][/else]
+[/if]
+
+[!]-- Normal login. --[/!]
+[if ("[action]"="login")&("[nusers]">"0")]
+  [then]
+    [text]ok=0[/text]
+    [text]phash=[encrypt method=AES&seed=[SITE-SEED]][f_pass][/encrypt][/text]
+    [showif [phash]!]
+      [search db=db/admins.db&eqMYADMINUSERdatarq=[uname]]
+        [founditems][showif [passhash]=[phash]][text]ok=1[/text][/showif][/founditems]
+      [/search]
+    [/showif]
+    [if ("[ok]"="1")]
+      [then]
+        [text]WMS_NEW_TOKEN=[cart][/text]
+        [append db=db/sessions.db][!]
+          [/!]token=[WMS_NEW_TOKEN][!]
+          [/!]&myadminuser=[uname][!]
+          [/!]&created=[date] [time][!]
+          [/!]&lastseen=[date] [time][!]
+        [/!][/append]
+        [setcookie name=wms_token&value=[WMS_NEW_TOKEN]&path=/]
+        [redirect /]
+      [/then]
+      [else]
+        [text]err=Invalid username or password.[/text]
+      [/else]
+    [/if]
+  [/then]
+  [else][/else]
+[/if]
+
+[!]---- html ----[/!]
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>[WMS_APP_NAME] — [if ("[nusers]"="0")][then]Set up[/then][else]Sign in[/else][/if]</title>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="/assets/css/custom.css" rel="stylesheet">
+<style>
+  body{background:linear-gradient(135deg,#C61D23,#0d1424);min-height:100vh;display:grid;place-items:center;}
+  .login-card{width:380px;max-width:92vw;border:0;border-radius:16px;box-shadow:0 18px 50px rgba(0,0,0,.35);}
+  .login-card .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:1.15rem;color:#C61D23;}
+  .login-card .brand i{color:#C61D23;font-size:1.5rem;}
+</style>
+</head>
+<body>
+<div class="card login-card">
+  <div class="card-body p-4">
+    <div class="brand mb-1"><i class="bi bi-database-fill-gear"></i> [WMS_APP_NAME]</div>
+    [showif [err]!]<div class="alert alert-danger py-2 small">[err]</div>[/showif]
+    [if ("[nusers]"="0")][then]
+    <p class="legend mb-3">First run — create the initial admin account for this tool.</p>
+    <form method="post" action="/login.html">
+      <input type="hidden" name="action" value="setup">
+      <div class="mb-2">
+        <label class="form-label small mb-1">Admin username</label>
+        <input class="form-control form-control-sm" name="f_user" required autofocus>
+      </div>
+      <div class="mb-3">
+        <label class="form-label small mb-1">Password</label>
+        <input class="form-control form-control-sm" type="password" name="f_pass" required>
+      </div>
+      <button class="btn btn-success w-100" type="submit"><i class="bi bi-person-plus"></i> Create admin &amp; sign in</button>
+    </form>
+    [/then][else]
+    <p class="legend mb-3">Sign in to the administration console.</p>
+    <form method="post" action="/login.html">
+      <input type="hidden" name="action" value="login">
+      <div class="mb-2">
+        <label class="form-label small mb-1">Username</label>
+        <input class="form-control form-control-sm" name="f_user" required autofocus>
+      </div>
+      <div class="mb-3">
+        <label class="form-label small mb-1">Password</label>
+        <input class="form-control form-control-sm" type="password" name="f_pass" required>
+      </div>
+      <button class="btn btn-secondary w-100" type="submit"><i class="bi bi-box-arrow-in-right"></i> Sign in</button>
+    </form>
+    [/else][/if]
+  </div>
+</div>
+</body>
+</html>

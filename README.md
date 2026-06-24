@@ -119,9 +119,6 @@ SELECT a, b FROM ...
 - `[text]…[/text]` defaults to no output, so no `show=F` is written. When a value
   *should* render, use lowercase `[text show=t]…[/text]`.
 - Use `1`/`0`, **not** `T`/`F`, in conditionals (WebDNA treats a bare `T`/`F` as a boolean).
-- Use `[switch]`/`[case]` for values with hyphens (WebDNA `[if]` mis-parses `-`).
-- Not-equal is `!`, **not** `!=` (which mis-parses). Quote and parenthesize `[if]`
-  operands so empty/spaced values compare safely: `[if ("[x]"="")]`, `[if ("[a]"!"[b]")]`.
 - Avoid WebDNA reserved words as field/variable/param names — this app uses
   `myadminuser` (not `username`), `admins.db` (not `users.db`), the `dbtable` URL
   param (not `table`), and `newsql` (not `sql`).

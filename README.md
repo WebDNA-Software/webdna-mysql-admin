@@ -1,8 +1,8 @@
 # WebDNA MySQLAdmin
 
-A WebDNA re-implementation of phpMyAdmin — a web UI to administer MySQL/MariaDB,
-built to the house style of the cloud-hosting-console (server-rendered, one
-WebDNA-processed `.html` per page, Bootstrap 5.3 + jQuery from CDN).
+Inspired by phpMyAdmin — this project is a web UI to administer MySQL/MariaDB,
+built to the style of the WebDNA Cloud Hosting Console https://github.com/WebDNA-Software/cloud-hosting-console
+(server-rendered, one WebDNA-processed `.html` per page, Bootstrap 5.3 + jQuery from CDN).
 
 This is **v1 / Core + Import-Export**. It talks to MySQL through WebDNA's native
 `[sqlconnect]` / `[sqlexecute]` / `[sqlresult]` contexts.
